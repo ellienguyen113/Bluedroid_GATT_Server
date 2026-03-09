@@ -1,19 +1,58 @@
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 
-#define LIGHT_GPIO GPIO_NUM_11
+// LED pins for each door
+#define LIGHT1_GPIO GPIO_NUM_11
+#define LIGHT2_GPIO GPIO_NUM_13
+#define LIGHT3_GPIO GPIO_NUM_14
 
 void light_init(void)
 {
-    gpio_set_direction(LIGHT_GPIO, GPIO_MODE_OUTPUT);
+    gpio_set_direction(LIGHT1_GPIO, GPIO_MODE_OUTPUT);
+    gpio_set_direction(LIGHT2_GPIO, GPIO_MODE_OUTPUT);
+    gpio_set_direction(LIGHT3_GPIO, GPIO_MODE_OUTPUT);
+
+    gpio_set_level(LIGHT1_GPIO, 0);
+    gpio_set_level(LIGHT2_GPIO, 0);
+    gpio_set_level(LIGHT3_GPIO, 0);
 }
 
-void light_on(void)
+void light_on(int door)
 {
-    gpio_set_level(LIGHT_GPIO, 1);
+    switch (door) {
+        case 1:
+            gpio_set_level(LIGHT1_GPIO, 1);
+            break;
+
+        case 2:
+            gpio_set_level(LIGHT2_GPIO, 1);
+            break;
+
+        case 3:
+            gpio_set_level(LIGHT3_GPIO, 1);
+            break;
+
+        default:
+            break;
+    }
 }
 
-void light_off(void)
+void light_off(int door)
 {
-    gpio_set_level(LIGHT_GPIO, 0);
+    switch (door) {
+        case 1:
+            gpio_set_level(LIGHT1_GPIO, 0);
+            break;
+
+        case 2:
+            gpio_set_level(LIGHT2_GPIO, 0);
+            break;
+
+        case 3:
+            gpio_set_level(LIGHT3_GPIO, 0);
+            break;
+
+        default:
+            break;
+    }
 }

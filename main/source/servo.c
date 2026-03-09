@@ -10,8 +10,8 @@
 #define DUTY_OPEN_DOOR     980
 
 #define SERVO1       2
-#define SERVO2       19
-#define SERVO3       20
+#define SERVO2       42
+#define SERVO3       41
 
 #define SERVO1_CHANNEL LEDC_CHANNEL_0
 #define SERVO2_CHANNEL LEDC_CHANNEL_1
