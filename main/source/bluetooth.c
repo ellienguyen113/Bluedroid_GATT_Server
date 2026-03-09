@@ -230,48 +230,49 @@ void auto_io_gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if
             int sent = param->write.value[0];
             printf("Received value: %d\n", sent);
             switch (sent) {
-    case 1:
-printf("Door 1\n");
-selected_door = 1;
-        break;
-    case 2:
-printf("Door 2\n");
-selected_door = 2;        
-break;
-    case 3:
-printf("Door 3\n");
-selected_door = 3;
-        break;
-    case 4:
-printf("AUTO\n");
-selected_mode = MODE_AUTO;        
-break;
-    case 5:
-printf("REMOTE\n");
-selected_mode = MODE_REMOTE;  
-        break;
-    case 6:
-printf("KEYPAD\n");
-selected_mode = MODE_KEYPAD;  
-        break;
-    case 7:
-printf("OPEN\n");
-remote_cmd = CMD_OPEN;
-        break;
-    case 8:
-printf("CLOSE\n");
-remote_cmd = CMD_CLOSE;
-        break;
-    case 9:
-        // code to execute
-        break;
-    default:
-        // code to execute if expression doesn't match any case
-        break;
-}     
- } 
 
-else {
+            case 1:
+            printf("Door 1\n");
+            selected_door = 1;
+            break;
+            case 2:
+            printf("Door 2\n");
+            selected_door = 2;        
+            break;
+            case 3:
+            printf("Door 3\n");
+            selected_door = 3;
+            break;
+            case 4:
+            printf("AUTO\n");
+            selected_mode = MODE_AUTO;        
+            break;
+            case 5:
+            printf("REMOTE\n");
+            selected_mode = MODE_REMOTE;  
+            break;
+            case 6:
+            printf("KEYPAD\n");
+            selected_mode = MODE_KEYPAD;  
+            break;
+            case 7:
+            printf("OPEN\n");
+            remote_cmd = CMD_OPEN;
+            break;
+            case 8:
+            printf("CLOSE\n");
+            remote_cmd = CMD_CLOSE;
+            break;
+            case 9:
+            // code to execute
+            break;
+            default:
+            // code to execute if expression doesn't match any case
+            break;
+        }     
+    } 
+
+    else {
             ESP_LOGI(GATTS_TAG, "LED OFF!");
             led_off();
             //gpio_set_level(BUZZER, 0);

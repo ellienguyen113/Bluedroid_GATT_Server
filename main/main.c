@@ -13,99 +13,182 @@
 #include "light.h"
 #include "bluetooth.h"
 
-
 // --- SETTINGS ---
-#define MODE_SWITCH_GPIO   GPIO_NUM_5   // Physical switch to toggle modes
-char input_buffer[4] = {0, 0, 0, 0}; 
-int input_count = 0;
-char MASTER_PASSWORD[4] = {'7', '8', '9', '9'}; // The PIN
+//#define MODE_SWITCH_GPIO   GPIO_NUM_5   // Physical switch to toggle modes
+#define PIN_LENGTH 4
 #define KEY_CLEAR '*'
 #define NOPRESS '\0'
+static const char PASSWORDS[3][PIN_LENGTH] = {
+    {'7', '8', '9', '9'},   // Door 1
+    {'1', '2', '3', '4'},   // Door 2
+    {'4', '3', '2', '1'}    // Door 3
+};  
+static char input_buffer[PIN_LENGTH] = {0};
+static int input_count = 0;
 
-
-void run_door_flow(void) {
-    printf("Opening Door...\n");
-    buzzer_play_success_async(); // Activation tone
-    door_open(); 
-    if (ldr_is_dark()) {
-        light_on();
-    }
-    else{
-        light_off();
-    }
-    vTaskDelay(pdMS_TO_TICKS(5000)); // Stay open 5s
-    door_close();
-    light_off();
-    printf("Door Closed.\n");
+// HELPER FUNCTIOMS
+static void clear_input_buffer(void)
+{
+    memset(input_buffer, 0, sizeof(input_buffer));
+    input_count = 0;
 }
 
-void app_main(void) {
-    // 1. Initialize Components
-    bluetooth_test();
+static void run_door_flow(int door_id)
+{
+    printf("Opening Door %d...\n", door_id);
+    buzzer_play_success_async();
+    door_open(door_id);
+    light_on();
+
+    vTaskDelay(pdMS_TO_TICKS(5000));   // keep door open for 5 seconds
+
+    door_close(door_id);
+    light_off();
+    printf("Door %d Closed.\n", door_id);
+}
+
+static int is_valid_door(int door_id)
+{
+    return (door_id >= 1 && door_id <= 3);
+}
+
+static int password_correct_for_selected_door(void)
+{
+    if (!is_valid_door(selected_door)) {
+        return 0;
+    }
+
+    return (memcmp(input_buffer, PASSWORDS[selected_door - 1], PIN_LENGTH) == 0);
+}
+
+static void handle_auto_mode(void)
+{
+    if (!is_valid_door(selected_door)) {
+        return;
+    }
+
+    if (ultrasonic_get_distance_cm() < 30.0) {
+        run_door_flow(selected_door);
+
+        printf("Waiting for person to leave...\n");
+        while (ultrasonic_get_distance_cm() < 35.0) {
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+        printf("Area clear. Monitoring resumed.\n");
+    }
+}
+
+static void handle_keypad_mode(void)
+{
+    if (!is_valid_door(selected_door)) {
+        return;
+    }
+
+    char key = get_key_buffered();
+
+    if (key == NOPRESS) {
+        return;
+    }
+
+    if (key == KEY_CLEAR) {
+        clear_input_buffer();
+        printf("PIN Cleared.\n");
+        return;
+    }
+
+    if (key >= '0' && key <= '9') {
+        if (input_count < PIN_LENGTH) {
+            input_buffer[input_count] = key;
+            input_count++;
+            printf("Door %d PIN digit %d/%d\n", selected_door, input_count, PIN_LENGTH);
+        }
+
+        if (input_count == PIN_LENGTH) {
+            printf("Entered PIN for Door %d: [%c%c%c%c]\n",
+                   selected_door,
+                   input_buffer[0], input_buffer[1], input_buffer[2], input_buffer[3]);
+
+            if (password_correct_for_selected_door()) {
+                printf("Access Granted for Door %d!\n", selected_door);
+                run_door_flow(selected_door);
+            } else {
+                printf("Access Denied for Door %d!\n", selected_door);
+                buzzer_play_failure_async();
+            }
+
+            clear_input_buffer();
+        }
+    }
+}
+
+static void handle_remote_mode(void)
+{
+    if (!is_valid_door(selected_door)) {
+        return;
+    }
+    if (remote_cmd == CMD_OPEN) {
+        printf("Remote OPEN for Door %d\n", selected_door);
+        buzzer_play_success_async();
+        door_open(selected_door);
+        light_on();
+        remote_cmd = CMD_NONE;   // clear after handling
+    }
+    else if (remote_cmd == CMD_CLOSE) {
+        printf("Remote CLOSE for Door %d\n", selected_door);
+        door_close(selected_door);
+        light_off();
+        remote_cmd = CMD_NONE;   // clear after handling
+    }
+}
+
+void app_main(void)
+{
+    // 1. Initialize components
+    bluetooth_test();    
     light_init();
-    ldr_init(ADC_CHANNEL_9); 
     buzzer_init();
     init_keypad();
     ultrasonic_init();
     servo_init();
 
-    // 2. Initialize the Mode Switch
-    gpio_set_direction(MODE_SWITCH_GPIO, GPIO_MODE_INPUT);
-    gpio_pullup_en(MODE_SWITCH_GPIO); // 1 = Auto, 0 = Keypad
+    // Start with everything closed/off
+    door_close(1);
+    door_close(2);
+    door_close(3);
+    light_off();
 
-    char input_buffer[4];
-    int input_count = 0;
+    clear_input_buffer();
 
-    printf("System Booted. Use Switch to Select Mode.\n");
+    printf("System Booted.\n");
+    printf("Use BLE to select:\n");
+    printf("1/2/3 = Door 1/2/3\n");
+    printf("4 = Auto Mode\n");
+    printf("5 = Remote Mode\n");
+    printf("6 = Keypad Mode\n");
+    printf("7 = Open\n");
+    printf("8 = Close\n");
 
     while (1) {
-        // READ THE SWITCH: High (1) = Auto Mode, Low (0) = Keypad Mode
-        int mode_select = gpio_get_level(MODE_SWITCH_GPIO);
+        // selected_door, selected_mode, and remote_cmd
+        // are updated by BLE callback in bluetooth.c
 
-        if (mode_select == 1) {
-            // --- MODE 1: AUTO MODE (Ultrasonic) ---
-            if (ultrasonic_get_distance_cm() < 30.0) {
-                run_door_flow();
-                
-                // NEW: Wait until the person moves away before allowing another trigger
-                printf("Waiting for person to leave...\n");
-                while(ultrasonic_get_distance_cm() < 35.0) {
-                    vTaskDelay(pdMS_TO_TICKS(100)); 
-                }
-                printf("Area clear. Monitoring resumed.\n");
-            }
-        }
-        else {
-            // --- MODE 3: KEYPAD MODE ---
-            char key = get_key_buffered();
-            if (key != NOPRESS) {
-                if (key == KEY_CLEAR) {
-                    input_count = 0;
-                    printf("PIN Cleared.\n");
-                } 
-                else if ((key >= '0' && key <= '9')){
-                    if (input_count<4){
-                        input_buffer[input_count] = key;
-                        input_count++;
-                        printf("Digit %d/4\n", input_count);
-                    }
-                    if (input_count == 4) {
-                        printf("DEBUG: Buffer is [%c%c%c%c]\n", 
-                               input_buffer[0], input_buffer[1], input_buffer[2], input_buffer[3]);
-                               
-                        if (memcmp(input_buffer, MASTER_PASSWORD, 4) == 0) {
-                            printf("Access Granted!\n");
-                            run_door_flow();
-                        } else {
-                            printf("Access Denied!\n");
-                            buzzer_play_failure_async(); // Warning tone
-                        }
-                        input_count = 0; // Reset for next try
-                    }
-                }
-            }
+        switch (selected_mode) {
+            case MODE_AUTO:
+                handle_auto_mode();
+                break;
+
+            case MODE_REMOTE:
+                handle_remote_mode();
+                break;
+
+            case MODE_KEYPAD:
+                handle_keypad_mode();
+                break;
+
+            default:
+                break;
         }
 
-        vTaskDelay(pdMS_TO_TICKS(20)); 
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
