@@ -3,7 +3,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
-
+#include <stdint.h>
 // Component APIs
 #include "buzzer.h"
 #include "keypad.h"
@@ -191,7 +191,7 @@ static void handle_auto_mode_all_doors(void)
 static void remote_door_task(void *arg){
     int door_id = (int)(intptr_t)arg;
     printf("Remote task opneing door %d...\n", door_id);
-    buzzer_play_success_asugnc();
+    buzzer_play_success_async();
     door_open(door_id);
     light_on(door_id);
 
@@ -209,7 +209,7 @@ static void handle_remote_mode(void)
     }
     if (remote_cmd == CMD_OPEN) {
         printf("Remote OPEN for Door %d\n", selected_door);
-        cTasjCreate(
+        cTaskCreate(
             remote_door_task,
             "remote_door_task",
             2048,
@@ -243,7 +243,7 @@ void app_main(void)
     door_close(3);
     light_off(1);
     light_off(2);
-    light_off(4);
+    light_off(3);
 
     clear_input_buffer();
     printf("System Booted.\n");
