@@ -35,14 +35,31 @@ static int is_valid_door(int door_id)
 {
     return (door_id >= 1 && door_id <= 3);
 }
-static void run_door_flow(int door_id)
+static void run_door_flow(int door_id, bool auto_mode)
 {
     printf("Opening Door %d...\n", door_id);
     buzzer_play_success_async();
     door_open(door_id);
     light_on(door_id);
 
-    vTaskDelay(pdMS_TO_TICKS(5000));   // keep door open for 5 seconds
+    if (auto_mode) {
+        // wait until person leaves
+        while (1) {
+            float d = ultrasonic_get_distance_cm(door_id);
+            if (d < 0 || d >= 35.0f) {
+                break;
+            }
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+
+        printf("Person left Door %d area\n", door_id);
+
+        // then wait 5 seconds before closing
+        vTaskDelay(pdMS_TO_TICKS(5000));
+    } else {
+        // keypad / remote behavior
+        vTaskDelay(pdMS_TO_TICKS(5000));
+    }
 
     door_close(door_id);
     light_off(door_id);
@@ -89,7 +106,7 @@ static void handle_keypad_mode(void)
 
             if (password_correct_for_selected_door()) {
                 printf("Access Granted for Door %d!\n", selected_door);
-                run_door_flow(selected_door);
+                run_door_flow(selected_door, false);
             } else {
                 printf("Access Denied for Door %d!\n", selected_door);
                 buzzer_play_failure_async();
@@ -100,104 +117,24 @@ static void handle_keypad_mode(void)
     }
 }
 
-static void handle_auto_mode_all_doors(void)
+static void handle_auto_mode(void)
 {
-    float d1 = ultrasonic_get_distance_cm(1);
-    vTaskDelay(pdMS_TO_TICKS(50));
-
-    float d2 = ultrasonic_get_distance_cm(2);
-    vTaskDelay(pdMS_TO_TICKS(50));
-
-    float d3 = ultrasonic_get_distance_cm(3);
-    vTaskDelay(pdMS_TO_TICKS(50));
-
-    // ---------------- Door 1 ----------------
-    if (d1 > 0 && d1 < 30.0f) {
-
-        printf("Person detected at Door 1\n");
-
-        door_open(1);
-        light_on(1);
-        buzzer_play_success_async();
-
-        // wait until person leaves
-        while (1) {
-            float d = ultrasonic_get_distance_cm(1);
-            if (d < 0 || d >= 35.0f) {
-                break;
-            }
-            vTaskDelay(pdMS_TO_TICKS(100));
-        }
-
-        printf("Person left Door 1 area\n");
-
-        // wait 5 seconds before closing
-        vTaskDelay(pdMS_TO_TICKS(5000));
-
-        door_close(1);
-        light_off(1);
+    if (!is_valid_door(selected_door)) {
+        return;
     }
 
-    // ---------------- Door 2 ----------------
-    if (d2 > 0 && d2 < 30.0f) {
+    float d = ultrasonic_get_distance_cm(selected_door);
 
-        printf("Person detected at Door 2\n");
-
-        door_open(2);
-        light_on(2);
-        buzzer_play_success_async();
-
-        while (1) {
-            float d = ultrasonic_get_distance_cm(2);
-            if (d < 0 || d >= 35.0f) {
-                break;
-            }
-            vTaskDelay(pdMS_TO_TICKS(100));
-        }
-
-        printf("Person left Door 2 area\n");
-
-        vTaskDelay(pdMS_TO_TICKS(5000));
-
-        door_close(2);
-        light_off(2);
-    }
-
-    // ---------------- Door 3 ----------------
-    if (d3 > 0 && d3 < 30.0f) {
-
-        printf("Person detected at Door 3\n");
-
-        door_open(3);
-        light_on(3);
-        buzzer_play_success_async();
-
-        while (1) {
-            float d = ultrasonic_get_distance_cm(3);
-            if (d < 0 || d >= 35.0f) {
-                break;
-            }
-            vTaskDelay(pdMS_TO_TICKS(100));
-        }
-
-        printf("Person left Door 3 area\n");
-
-        vTaskDelay(pdMS_TO_TICKS(5000));
-
-        door_close(3);
-        light_off(3);
+    if (d > 0 && d < 30.0f) {
+        printf("Person detected at Door %d\n", selected_door);
+        run_door_flow(selected_door, true);
     }
 }
-static void remote_door_task(void *arg){
+static void remote_door_task(void *arg)
+{
     int door_id = (int)(intptr_t)arg;
-    printf("Remote task opneing door %d...\n", door_id);
-    buzzer_play_success_async();
-    door_open(door_id);
-    light_on(door_id);
-
-    vTaskDelay(pdMS_TO_TICKS(5000));
-    door_close(door_id);
-    light_off(door_id);
+    printf("Remote task opening door %d...\n", door_id);
+    run_door_flow(door_id, false);
     printf("Remote task closed door %d.\n", door_id);
     vTaskDelete(NULL);
 }
@@ -209,7 +146,7 @@ static void handle_remote_mode(void)
     }
     if (remote_cmd == CMD_OPEN) {
         printf("Remote OPEN for Door %d\n", selected_door);
-        cTaskCreate(
+        xTaskCreate(
             remote_door_task,
             "remote_door_task",
             2048,
@@ -261,7 +198,7 @@ void app_main(void)
 
         switch (selected_mode) {
             case MODE_AUTO:
-                handle_auto_mode_all_doors();
+                handle_auto_mode();
                 break;
 
             case MODE_REMOTE:

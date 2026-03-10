@@ -7,7 +7,7 @@
 #define BUZZER_GPIO        4
 #define BUZZER_TIMER       LEDC_TIMER_1
 #define BUZZER_MODE        LEDC_LOW_SPEED_MODE
-#define BUZZER_CHANNEL     LEDC_CHANNEL_1
+#define BUZZER_CHANNEL     LEDC_CHANNEL_3
 #define BUZZER_DUTY_RES    LEDC_TIMER_13_BIT
 
 void buzzer_init(void)
@@ -16,7 +16,7 @@ void buzzer_init(void)
         .speed_mode       = BUZZER_MODE,
         .duty_resolution  = BUZZER_DUTY_RES,
         .timer_num        = BUZZER_TIMER,
-        .freq_hz          = 2000,              // default tone (2 kHz)
+        .freq_hz          = 2000,             
         .clk_cfg          = LEDC_AUTO_CLK
     };
     (void)ledc_timer_config(&timer_cfg);

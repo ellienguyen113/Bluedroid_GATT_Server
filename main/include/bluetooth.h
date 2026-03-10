@@ -93,21 +93,28 @@ void auto_io_gatts_profile_event_handler(esp_gatts_cb_event_t event,
  * @param param Pointer to GATT callback parameters containing write event data
  */
 
-typedef enum{
-    MODE_AUTO=0,
-    MODE_REMOTE=1,
-    MODE_KEYPAD=2
+//#ifndef BLUETOOTH_H
+//#define BLUETOOTH_H
+//#endif /* BLUETOOTH_H */
+
+typedef enum {
+    MODE_AUTO = 0,
+    MODE_REMOTE = 1,
+    MODE_KEYPAD = 2
 } door_mode_t;
 
 typedef enum {
-    CMD_NONE=0,
-    CMD_OPEN=1,
-    CMD_CLOSE=2
+    CMD_NONE = 0,
+    CMD_OPEN = 1,
+    CMD_CLOSE = 2
 } remote_cmd_t;
 
-extern int selected_door;
-extern door_mode_t selected_mode;
-extern remote_cmd_t remote_cmd;
+extern volatile int selected_door;
+extern volatile door_mode_t selected_mode;
+extern volatile remote_cmd_t remote_cmd;
+
+void bluetooth_test(void);
+
 
 void bluetooth_test(void);
 

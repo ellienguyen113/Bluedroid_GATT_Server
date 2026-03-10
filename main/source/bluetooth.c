@@ -25,48 +25,19 @@
 #include "esp_gatt_common_api.h"
 # include "led.h"
 
-typedef enum{
-    MODE_AUTO=0, 
-    MODE_REMOTE=1, 
-    MODE_KEYPAD=2
-} door_mode_t;
-
-//For testing (BLE is not ready)
-int selected_door = 1;
-door_mode_t selected_mode = MODE_AUTO;
-
-typedef enum { 
-    CMD_NONE=0, 
-    CMD_OPEN=1, 
-    CMD_CLOSE=2 
-} remote_cmd_t;
-remote_cmd_t remote_cmd = CMD_NONE;
-
 #define PROFILE_NUM 1
 #define AUTO_IO_PROFILE_APP_ID 0
 #define AUTO_IO_SVC_UUID 0x1815
 #define AUTO_IO_NUM_HANDLE 3
 
-#define BUZZER GPIO_NUM_11
 
 #define ADV_CONFIG_FLAG      (1 << 0)
 #define SCAN_RSP_CONFIG_FLAG (1 << 1)
 
-/*struct gatts_profile_inst {
-    esp_gatts_cb_t gatts_cb;
-    uint16_t gatts_if;
-    uint16_t app_id;
-    uint16_t conn_id;
-    uint16_t service_handle;
-    esp_gatt_srvc_id_t service_id;
-    uint16_t char_handle;
-    esp_bt_uuid_t char_uuid;
-    esp_gatt_perm_t perm;
-    esp_gatt_char_prop_t property;
-    uint16_t descr_handle;
-    esp_bt_uuid_t descr_uuid;
-};
-*/
+volatile int selected_door = 1;
+volatile door_mode_t selected_mode = MODE_AUTO;
+volatile remote_cmd_t remote_cmd = CMD_NONE;
+
 ///Declare the static function
 void auto_io_gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
 void example_write_event_env(esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
@@ -274,7 +245,6 @@ void auto_io_gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if
 
     else {
             ESP_LOGI(GATTS_TAG, "LED OFF!");
-            led_off();
             //gpio_set_level(BUZZER, 0);
             printf("Zero!\n");
         }

@@ -1,32 +1,33 @@
 #include "servo.h"
 #include "driver/ledc.h"
 #include "esp_err.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include <stdio.h>
 
 #define SERVO_TIMER        LEDC_TIMER_0
 #define SERVO_MODE         LEDC_LOW_SPEED_MODE
 #define SERVO_DUTY_RES     LEDC_TIMER_13_BIT
 #define SERVO_FREQUENCY    50
-#define DUTY_CLOSE_DOOR    230
-#define DUTY_OPEN_DOOR     980
 
-#define SERVO1       2
-#define SERVO2       42
-#define SERVO3       41
+#define DUTY_CLOSE_DOOR    250
+#define DUTY_OPEN_DOOR     950
 
-#define SERVO1_CHANNEL LEDC_CHANNEL_0
-#define SERVO2_CHANNEL LEDC_CHANNEL_1
-#define SERVO3_CHANNEL LEDC_CHANNEL_2
+#define SERVO1             2
+#define SERVO2             42
+#define SERVO3             41
 
-static ledc_channel_t get_channel_for_door(int door_id){
-    switch(door_id){
-        case 1:
-        return SERVO1;
-        case 2:
-        return SERVO2;
-        case 3:
-        return SERVO3;
-        default:
-        return SERVO1;
+#define SERVO1_CHANNEL     LEDC_CHANNEL_0
+#define SERVO2_CHANNEL     LEDC_CHANNEL_1
+#define SERVO3_CHANNEL     LEDC_CHANNEL_2
+
+static ledc_channel_t get_channel_for_door(int door_id)
+{
+    switch (door_id) {
+        case 1: return SERVO1_CHANNEL;
+        case 2: return SERVO2_CHANNEL;
+        case 3: return SERVO3_CHANNEL;
+        default: return SERVO1_CHANNEL;
     }
 }
 
@@ -47,7 +48,7 @@ void servo_init(void)
         .timer_sel      = SERVO_TIMER,
         .intr_type      = LEDC_INTR_DISABLE,
         .gpio_num       = SERVO1,
-        .duty           = 0,
+        .duty           = DUTY_CLOSE_DOOR,
         .hpoint         = 0
     };
     ESP_ERROR_CHECK(ledc_channel_config(&servo1));
@@ -58,7 +59,7 @@ void servo_init(void)
         .timer_sel      = SERVO_TIMER,
         .intr_type      = LEDC_INTR_DISABLE,
         .gpio_num       = SERVO2,
-        .duty           = 0,
+        .duty           = DUTY_CLOSE_DOOR,
         .hpoint         = 0
     };
     ESP_ERROR_CHECK(ledc_channel_config(&servo2));
@@ -69,22 +70,35 @@ void servo_init(void)
         .timer_sel      = SERVO_TIMER,
         .intr_type      = LEDC_INTR_DISABLE,
         .gpio_num       = SERVO3,
-        .duty           = 0,
+        .duty           = DUTY_CLOSE_DOOR,
         .hpoint         = 0
     };
     ESP_ERROR_CHECK(ledc_channel_config(&servo3));
 }
 
-void door_open(int door_id)
+static void servo_move_smooth(int door_id, int start, int end)
 {
     ledc_channel_t channel = get_channel_for_door(door_id);
-    ledc_set_duty(SERVO_MODE, channel, DUTY_OPEN_DOOR);
+    int step = (end > start) ? 5 : -5;
+
+    for (int d = start; d != end; d += step) {
+        ledc_set_duty(SERVO_MODE, channel, d);
+        ledc_update_duty(SERVO_MODE, channel);
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+
+    ledc_set_duty(SERVO_MODE, channel, end);
     ledc_update_duty(SERVO_MODE, channel);
+}
+
+void door_open(int door_id)
+{
+    printf("door_open(%d) -> channel %d\n", door_id, get_channel_for_door(door_id));
+    servo_move_smooth(door_id, DUTY_CLOSE_DOOR, DUTY_OPEN_DOOR);
 }
 
 void door_close(int door_id)
 {
-    ledc_channel_t channel = get_channel_for_door(door_id);
-    ledc_set_duty(SERVO_MODE, channel, DUTY_CLOSE_DOOR);
-    ledc_update_duty(SERVO_MODE, channel);
+    printf("door_close(%d) -> channel %d\n", door_id, get_channel_for_door(door_id));
+    servo_move_smooth(door_id, DUTY_OPEN_DOOR, DUTY_CLOSE_DOOR);
 }
