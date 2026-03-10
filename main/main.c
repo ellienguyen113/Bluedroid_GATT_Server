@@ -125,7 +125,7 @@ static void handle_auto_mode(void)
 
     float d = ultrasonic_get_distance_cm(selected_door);
 
-    if (d > 0 && d < 30.0f) {
+    if (d > 0 && d < 25.0f) {
         printf("Person detected at Door %d\n", selected_door);
         run_door_flow(selected_door, true);
     }
