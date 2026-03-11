@@ -72,4 +72,17 @@ Default PIN codes for each door:
   - ultrasonic.h
   - servo.h
   - light.h
-  - bluetooth.h
+  - bluetooth.h###
+ESP-IDF Core Components
+- `"esp_system.h"`
+- `"esp_log.h"`
+- `"nvs_flash.h"`
+- `"esp_bt.h"`
+
+### ESP32 Bluetooth
+- `"esp_gap_ble_api.h"`      - BLE Gap (Generic Access Profile)
+- `"esp_gatts_api.h"`         - BLE GATT Server
+- `"esp_bt_defs.h"`           - Bluetooth definitions
+- `"esp_bt_main.h"`           - Bluetooth controller
+- `"esp_bt_device.h"`         - Bluetooth device
+- `"esp_gatt_common_api.h"`   - Common GATT API functions
